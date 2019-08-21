@@ -1,0 +1,58 @@
+# vim:ft=ansible:
+---
+
+- name: install iptables-persistent
+  package:
+    name: "{{ item }}"
+    state: installed
+  with_items: ['iptables-persistent']
+
+- name: get metadata vpc
+  set_fact:
+    vpc_cidr_range: "{{ vars['ansible_ec2_network_interfaces_macs_' + ansible_ec2_mac|regex_replace(':', '_') + '_vpc_ipv4_cidr_block'] }}"
+  when: is_aws_environment
+
+# TODO: add condition to check source_dest_check from ec2_instance_facts
+- name: Disable aws source destination check (required for NAT instance)
+  shell: aws ec2 modify-instance-attribute --instance-id {{ ansible_ec2_instance_id }} --no-source-dest-check --region {{ ansible_ec2_placement_region }}
+  when: is_aws_environment
+
+- name: setup forwarding 1
+  sysctl:
+    name="net.ipv4.ip_forward"
+    value=1
+    sysctl_set=yes
+    state=present
+    reload=on
+
+- name: setup forwarding 2
+  sysctl:
+    name="net.ipv4.conf.all.send_redirects"
+    value=0
+    sysctl_set=yes
+    state=present
+    reload=on
+
+- name: Masquerades the source IP address of incoming packets to forward them
+  iptables:
+    table: nat
+    chain: POSTROUTING
+    out_interface: "{{ ansible_default_ipv4.interface }}"
+    jump: MASQUERADE
+    comment: Ansible Masquerades the source IP
+  notify: save iptables rules
+  when: ansible_default_ipv4 is defined
+
+# http://serverfault.com/questions/637612/trouble-hitting-ec2-amazonprovideddns-server-over-vpn
+- name: Allow hitting EC2 AmazonProvidedDNS server over VPN
+  iptables:
+    table: nat
+    chain: PREROUTING
+    in_interface: "{{ ansible_default_ipv4.interface }}"
+    protocol: udp
+    to_destination: "{{ vpc_cidr_range.split('.')[0:3]|join('.') }}.2"
+    destination_port: 53
+    jump: DNAT
+    comment: Ansible DNS Proxy Prerouting
+  notify: save iptables rules
+  when: is_aws_environment

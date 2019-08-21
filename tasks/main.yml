@@ -1,0 +1,103 @@
+# vim:ft=ansible:
+---
+
+- name: import aws metadata if such exists
+  import_tasks: aws.yml
+
+- name: install package ansible ansible depends of
+  apt:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - iproute2
+  register: install_iproute
+
+- name: Set ansible fact ansible_default_ipv4
+  setup:
+  when: install_iproute is changed
+
+- name: install openvpn
+  apt:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - openvpn
+    - easy-rsa
+
+- name: Create openvpn etc directory
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: 0755
+  with_items:
+    - /etc/openvpn
+
+- name: copy the easy-rsa directory to /etc/openvpn
+  shell: make-cadir /etc/openvpn/easy-rsa
+    creates=/etc/openvpn/easy-rsa
+
+- name: install patched revoke-full
+  template:
+    src: revoke-full.j2
+    dest: /etc/openvpn/easy-rsa/revoke-full
+    owner: "{{ openvpn_daemon_user }}"
+    group: "{{ openvpn_daemon_group }}"
+    mode: 0755
+
+- name: install easy-rsa vars file
+  template:
+    src: vars.j2
+    dest: /etc/openvpn/easy-rsa/vars
+    owner: "{{ openvpn_daemon_user }}"
+    group: "{{ openvpn_daemon_group }}"
+
+- name: create symlink to openssl.conf
+  file:
+    src: /etc/openvpn/easy-rsa/openssl-1.0.0.cnf
+    path: /etc/openvpn/easy-rsa/openssl.cnf
+    state: link
+    force: yes
+
+- name: Create keys directory
+  file:
+    path: /etc/openvpn/easy-rsa/keys
+    state: directory
+    mode: 0711
+    owner: "{{ openvpn_daemon_user }}"
+    group: "{{ openvpn_daemon_group }}"
+
+- name: Check if restore from backup lock file exists
+  stat:
+    path: /etc/openvpn/restore-from-backup.lock
+  register: restore_from_backup_lock
+  when: restore_from_s3_backup
+
+- name: Restore keys from backup
+  import_tasks: restore-keys.yml
+  when: restore_from_s3_backup and restore_from_backup_lock.stat.exists == False
+
+- name: perform initial install
+  import_tasks: generate-keys.yml
+  when: openvpn_dh1024_pem is not defined or openvpn_ca_key is not defined or openvpn_server_key is not defined or openvpn_crl_pem is not defined
+
+- name: install existing keys
+  import_tasks: install-keys.yml
+  when: openvpn_dh1024_pem is defined and openvpn_ca_key is defined and openvpn_server_key is defined and openvpn_crl_pem is defined
+
+- name: install openvpn server config
+  template:
+    src: server.conf.j2
+    dest: /etc/openvpn/server.conf
+  notify: Restart openvpn server
+
+- name: Start openvpn server
+  service:
+    name: openvpn@server
+    state: started
+    enabled: yes
+  when: ansible_env.GITLAB_CI is not defined
+
+- name: setup iptables to route traffic to VPC network
+  import_tasks: nat.yml

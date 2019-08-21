@@ -1,0 +1,25 @@
+# vim:ft=ansible:
+---
+
+key_country: AA
+key_province: ST
+key_city: CITY
+key_org: COMPANY
+key_email: CONTACT@COMPANY.COM
+
+openvpn_server_port: 1194
+openvpn_server_proto: udp
+
+openvpn_daemon_user: nobody
+openvpn_daemon_group: nogroup
+
+openvpn_backup_bucket: backup
+
+restore_from_s3_backup: False
+backup_to_s3: False
+
+openvpn_subnet: "server 10.8.0.0 255.255.255.0"
+openvpn_push_route: []
+openvpn_domain_search: []
+openvpn_dns_servers:
+  - "8.8.8.8"

@@ -1,0 +1,6 @@
+- hosts: localhost
+  gather_facts: True
+  tasks:
+    - name: Install openvpn
+      import_role:
+        name: openvpn

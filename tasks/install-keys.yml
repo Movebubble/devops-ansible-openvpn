@@ -1,0 +1,67 @@
+# vim:ft=ansible:
+---
+
+- name: create file with Diffie Hellman parameters
+  copy:
+    content: "{{ openvpn_dh1024_pem }}"
+    dest: /etc/openvpn/easy-rsa/keys/dh1024.pem
+    owner: "{{ openvpn_daemon_user }}"
+    group: "{{ openvpn_daemon_group }}"
+    mode: 0600
+
+- name: create ca.crt
+  copy:
+    content: "{{ openvpn_ca_crt }}"
+    dest: /etc/openvpn/easy-rsa/keys/ca.crt
+    owner: "{{ openvpn_daemon_user }}"
+    group: "{{ openvpn_daemon_group }}"
+    mode: 0644
+
+- name: server.crt
+  copy:
+    content: "{{ openvpn_server_crt }}"
+    dest: /etc/openvpn/easy-rsa/keys/server.crt
+    owner: "{{ openvpn_daemon_user }}"
+    group: "{{ openvpn_daemon_group }}"
+    mode: 0644
+
+- name: create master Certificate Authority (CA) key
+  copy:
+    content: "{{ openvpn_ca_key }}"
+    dest: /etc/openvpn/easy-rsa/keys/ca.key
+    owner: "{{ openvpn_daemon_user }}"
+    group: "{{ openvpn_daemon_group }}"
+    mode: 0600
+
+- name: create the master Certificate Authority (CA) certificate
+  copy:
+    content: "{{ openvpn_server_key }}"
+    dest: /etc/openvpn/easy-rsa/keys/server.key
+    mode: 0600
+    owner: "{{ openvpn_daemon_user }}"
+    group: "{{ openvpn_daemon_group }}"
+
+- name: create crl.pem
+  copy:
+    content: "{{ openvpn_crl_pem }}"
+    dest: /etc/openvpn/easy-rsa/keys/crl.pem
+    owner: "{{ openvpn_daemon_user }}"
+    group: "{{ openvpn_daemon_group }}"
+    mode: 0600
+
+- name: create serial file
+  copy:
+    content: "{{ openvpn_serial }}"
+    dest: /etc/openvpn/easy-rsa/keys/serial
+    owner: "{{ openvpn_daemon_user }}"
+    group: "{{ openvpn_daemon_group }}"
+    force: no
+    mode: 0600
+
+- name: create index.txt
+  file:
+    state: touch
+    dest: /etc/openvpn/easy-rsa/keys/index.txt
+    owner: "{{ openvpn_daemon_user }}"
+    group: "{{ openvpn_daemon_group }}"
+    mode: 0600

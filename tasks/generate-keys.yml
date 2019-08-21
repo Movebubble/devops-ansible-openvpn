@@ -1,0 +1,35 @@
+# vim:ft=ansible:
+---
+
+- name: Diffie Hellman parameters must be generated for the OpenVPN server
+  shell: . ./vars && bash ./clean-all && bash ./build-dh
+    chdir=/etc/openvpn/easy-rsa/
+    creates=/etc/openvpn/easy-rsa/keys/dh2048.pem
+  notify: Backup openvpn certificates
+
+- name: generate the master Certificate Authority (CA) key
+  shell: . ./vars && bash ./pkitool --initca
+    chdir=/etc/openvpn/easy-rsa/
+    creates=/etc/openvpn/easy-rsa/keys/ca.key
+  notify: Backup openvpn certificates
+
+- name: set 744 permissions to key file to allow lookup read it
+  file:
+    path=/etc/openvpn/easy-rsa/keys/ca.key
+    mode=0744
+  notify: Backup openvpn certificates
+
+- name: generate the master Certificate Authority (CA) certificate
+  shell: . ./vars && bash ./pkitool --server server
+    chdir=/etc/openvpn/easy-rsa/
+    creates=/etc/openvpn/easy-rsa/keys/server.key
+  notify: Backup openvpn certificates
+
+- name: create crl.pem
+  shell: . ./vars && ./pkitool commonname && ./revoke-full commonname
+    chdir=/etc/openvpn/easy-rsa
+    creates=/etc/openvpn/easy-rsa/keys/crl.pem
+  notify: Backup openvpn certificates
+
+- name: set file ownerships
+  shell: chown -R {{ openvpn_daemon_user }}.{{ openvpn_daemon_group }} /etc/openvpn/easy-rsa

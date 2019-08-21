@@ -1,0 +1,21 @@
+test:
+  image:
+    name: geerlingguy/docker-ubuntu1604-ansible
+  before_script:
+    - ps aux
+    - apt-get update
+    - apt-get install -y rsync
+    # - apt-get install -y systemd software-properties-common rsync
+    # - apt-add-repository -y ppa:ansible/ansible
+    # - apt-get update
+    # - apt-get install -y ansible
+    - mkdir -p roles/openvpn
+    - rsync -ar --exclude=.git --exclude=roles . roles/openvpn
+  script:
+    - echo "Check Syntax"
+    - ansible-playbook .playbook.yml --syntax-check
+    - echo "Check Role"
+    - ansible-playbook .playbook.yml
+    - echo "Check Role Idempotence"
+    # - ansible-playbook .playbook.yml | tee -a idempotence.txt
+    # - grep -q 'changed=0.*failed=0' idempotence.txt || exit 1

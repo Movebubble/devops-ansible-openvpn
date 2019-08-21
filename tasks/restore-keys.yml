@@ -1,0 +1,31 @@
+# vim:ft=ansible:
+---
+
+- name: List keys
+  aws_s3:
+    bucket: "{{ openvpn_backup_bucket }}"
+    prefix: openvpn/
+    mode: list
+    region: "{{ ansible_ec2_placement_region }}"
+  register: openvpn_keys
+
+- name: debug
+  debug: msg="keys - {{ openvpn_keys }}"
+
+- name: Create subdirectories
+  file:
+    state: directory
+    recurse: yes
+    path: "/etc/{{ item|dirname }}"
+  with_items: "{{ openvpn_keys.s3_keys }}"
+
+- name: download keys
+  aws_s3:
+    bucket: "{{ openvpn_backup_bucket }}"
+    object: "{{ item }}"
+    dest: "/etc/{{ item }}"
+    mode: get
+    region: "{{ ansible_ec2_placement_region }}"
+  with_items: "{{ openvpn_keys.s3_keys }}"
+  when: item != item | regex_search('(.*/$)')
+  notify: Create lock file
