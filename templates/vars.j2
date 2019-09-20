@@ -78,3 +78,6 @@ export KEY_NAME="EasyRSA"
 # If you'd like to sign all keys with the same Common Name, uncomment the KEY_CN export below
 # You will also need to make sure your OpenVPN server config has the duplicate-cn option set
 # export KEY_CN="CommonName"
+
+# Prevents refused client connection because of an expired CRL
+export EASYRSA_CRL_DAYS=3650
